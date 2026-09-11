@@ -28,7 +28,7 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { auth, db, googleProvider } from "./firebase"
 import JobFeed from "./JobFeed"
-
+import Analytics from "./Analytics"
 type Application = {
   id: string
   companyName: string
@@ -826,7 +826,7 @@ function App() {
           </div>
 
         </div>
-
+<Analytics applications={applications} />
         {/* Applications */}
         <section className="mt-8 rounded-xl border border-slate-800 bg-slate-900 p-6">
 

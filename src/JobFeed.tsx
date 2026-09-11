@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { addDoc, collection } from "firebase/firestore"
 import { auth, db } from "./firebase"
 
@@ -22,7 +22,7 @@ type AdzunaResponse = {
 }
 
 function isFresherFriendly(job: Job) {
-  const title = job.title.toLowerCase()
+  const title = (job.title || "").toLowerCase()
 
   const description = (job.description || "")
     .toLowerCase()
@@ -31,65 +31,77 @@ function isFresherFriendly(job: Job) {
 
   const text = `${title} ${description}`
 
-  // Reject clear 2+ year experience requirements
-  const experiencedPatterns = [
-    /\b2\s*-\s*3\s*years?\b/i,
-    /\b2\s*to\s*3\s*years?\b/i,
-    /\b2\s*-\s*4\s*years?\b/i,
-    /\b2\s*to\s*4\s*years?\b/i,
-    /\b3\s*-\s*5\s*years?\b/i,
-    /\b3\s*to\s*5\s*years?\b/i,
-    /\b4\s*-\s*6\s*years?\b/i,
-    /\b4\s*to\s*6\s*years?\b/i,
-    /\b5\s*-\s*10\s*years?\b/i,
-    /\b5\s*to\s*10\s*years?\b/i,
-    /\b6\s*-\s*10\s*years?\b/i,
-    /\b6\s*to\s*10\s*years?\b/i,
-    /\b7\s*-\s*10\s*years?\b/i,
-    /\b7\s*to\s*10\s*years?\b/i,
-    /\b8\s*-\s*15\s*years?\b/i,
-
-    /\b[2-9]\+?\s*years?\s*(?:of\s*)?experience\b/i,
-    /\b(?:minimum|at least)\s*[2-9]\+?\s*years?\b/i,
-    /\brequires?\s*[2-9]\+?\s*years?\b/i,
-    /\brequired\s*[2-9]\+?\s*years?\b/i,
-  ]
-
-  if (experiencedPatterns.some((pattern) => pattern.test(text))) {
-    return false
-  }
-
-  // Reject clearly experienced job titles
-  const experiencedTitles = [
+  const seniorPatterns = [
     /\bsenior\b/i,
+    /\bsr\.?\b/i,
     /\blead\b/i,
     /\bprincipal\b/i,
     /\barchitect\b/i,
     /\bmanager\b/i,
+    /\bdirector\b/i,
+    /\bhead\s+of\b/i,
+    /\bstaff\b/i,
+    /\bmid[- ]level\b/i,
+    /\bmid[- ]to[- ]senior\b/i,
+    /\bmid\s+to\s+senior\b/i,
+    /\bexperienced\b/i,
+    /\bstrong\s+experience\b/i,
+    /\bsound\s+experience\b/i,
+    /\bextensive\s+experience\b/i,
+    /\bproven\s+experience\b/i,
+    /\bsde\s*[2-9]\b/i,
+    /\bsde[- ]*[2-9]\b/i,
   ]
 
-  if (experiencedTitles.some((pattern) => pattern.test(title))) {
+  if (seniorPatterns.some((pattern) => pattern.test(text))) {
     return false
   }
 
-  // Accept strong fresher signals
+  const experiencePatterns = [
+    /\b([2-9]|[1-9]\d+)\s*\+\s*(?:years?|yrs?)\b/i,
+    /\b([2-9]|[1-9]\d*)\s*(?:years?|yrs?)\s+of\s+experience\b/i,
+    /\bminimum\s+(?:of\s+)?([2-9]|[1-9]\d*)\s*(?:years?|yrs?)\b/i,
+    /\bat\s+least\s+([2-9]|[1-9]\d*)\s*(?:years?|yrs?)\b/i,
+    /\brequires?\s+([2-9]|[1-9]\d*)\s*(?:years?|yrs?)\b/i,
+    /\brequired\s+([2-9]|[1-9]\d*)\s*(?:years?|yrs?)\b/i,
+  ]
+
+  if (experiencePatterns.some((pattern) => pattern.test(text))) {
+    return false
+  }
+
+  const oneYearPatterns = [
+    /\b1\s*\+\s*(?:years?|yrs?)\b/i,
+    /\b1\s*(?:year|yr)\s+of\s+experience\b/i,
+    /\bat\s+least\s+a\s+year\b/i,
+    /\bat\s+least\s+one\s+year\b/i,
+    /\bminimum\s+(?:of\s+)?a\s+year\b/i,
+    /\bminimum\s+(?:of\s+)?one\s+year\b/i,
+    /\bminimum\s+1\s+(?:year|yr)\b/i,
+    /\brequires?\s+1\s+(?:year|yr)\b/i,
+    /\brequired\s+1\s+(?:year|yr)\b/i,
+  ]
+
+  if (oneYearPatterns.some((pattern) => pattern.test(text))) {
+    return false
+  }
+
   const fresherPatterns = [
     /\bfresher\b/i,
     /\bfreshers\b/i,
     /\bentry[- ]level\b/i,
-    /\b0\s*-\s*1\s*years?\b/i,
-    /\b0\s*to\s*1\s*years?\b/i,
-    /\b0\s*-\s*2\s*years?\b/i,
-    /\b0\s*to\s*2\s*years?\b/i,
-    /\b1\s*-\s*2\s*years?\b/i,
-    /\b1\s*to\s*2\s*years?\b/i,
+    /\b0\s*-\s*1\s*(?:years?|yrs?)\b/i,
+    /\b0\s*to\s*1\s*(?:years?|yrs?)\b/i,
+    /\b0\s*-\s*2\s*(?:years?|yrs?)\b/i,
+    /\b0\s*to\s*2\s*(?:years?|yrs?)\b/i,
+    /\bno\s+experience\b/i,
+    /\bwithout\s+experience\b/i,
   ]
 
   if (fresherPatterns.some((pattern) => pattern.test(text))) {
     return true
   }
 
-  // Junior / trainee / intern only when in the title
   if (
     /\bjunior\b/i.test(title) ||
     /\btrainee\b/i.test(title) ||
@@ -99,7 +111,7 @@ function isFresherFriendly(job: Job) {
     return true
   }
 
-  return false
+  return true
 }
 
 function JobFeed() {
@@ -109,46 +121,42 @@ function JobFeed() {
   const [error, setError] = useState("")
   const [savingId, setSavingId] = useState<string | number | null>(null)
 
-  const searchJobs = async () => {
+  const searchJobs = async (term = searchTerm) => {
     setLoading(true)
     setError("")
     setJobs([])
 
     try {
       const params = new URLSearchParams({
-        what: searchTerm.trim() || "Software Developer",
+        what: term.trim() || "Software Developer",
         where: "India",
       })
 
-      const response = await fetch(
-        "/api/jobs?" + params.toString()
-      )
+      const response = await fetch("/api/jobs?" + params.toString())
 
       if (!response.ok) {
-        throw new Error(
-          "Job API request failed: " + response.status
-        )
+        throw new Error("Job API request failed: " + response.status)
       }
 
       const data: AdzunaResponse = await response.json()
 
-      const fresherJobs = (data.results || []).filter(
-        isFresherFriendly
-      )
+      const fresherJobs = (data.results || []).filter(isFresherFriendly)
 
       setJobs(fresherJobs)
     } catch (err) {
       console.error(err)
 
       setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to load jobs."
+        err instanceof Error ? err.message : "Failed to load jobs."
       )
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    void searchJobs("React Developer")
+  }, [])
 
   const saveJob = async (job: Job) => {
     if (!auth.currentUser) {
@@ -161,8 +169,7 @@ function JobFeed() {
     try {
       await addDoc(collection(db, "applications"), {
         userId: auth.currentUser.uid,
-        companyName:
-          job.company?.display_name || "Unknown Company",
+        companyName: job.company?.display_name || "Unknown Company",
         role: job.title,
         status: "Applied",
         appliedDate: new Date().toISOString().split("T")[0],
@@ -201,7 +208,7 @@ function JobFeed() {
         />
 
         <button
-          onClick={searchJobs}
+          onClick={() => void searchJobs()}
           disabled={loading}
           className="rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
         >
@@ -244,7 +251,9 @@ function JobFeed() {
                     {job.salary_min
                       ? "Rs. " + job.salary_min.toLocaleString()
                       : ""}
+
                     {job.salary_min && job.salary_max ? " - " : ""}
+
                     {job.salary_max
                       ? "Rs. " + job.salary_max.toLocaleString()
                       : ""}
@@ -263,7 +272,7 @@ function JobFeed() {
                 </a>
 
                 <button
-                  onClick={() => saveJob(job)}
+                  onClick={() => void saveJob(job)}
                   disabled={savingId === job.id}
                   className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
                 >
@@ -279,6 +288,12 @@ function JobFeed() {
             )}
           </article>
         ))}
+
+        {loading && (
+          <div className="rounded-xl border border-slate-200 p-8 text-center text-slate-500">
+            Loading fresher jobs...
+          </div>
+        )}
 
         {!loading && jobs.length === 0 && !error && (
           <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
